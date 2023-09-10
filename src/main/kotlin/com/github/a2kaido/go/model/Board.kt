@@ -3,7 +3,7 @@ package com.github.a2kaido.go.model
 data class Board(
     val numRows: Int,
     val numCols: Int,
-    private val grid: MutableMap<Point, GoString>,
+    val grid: MutableMap<Point, GoString>,
 ) {
     fun placeStone(player: Player, point: Point) {
         assert(isOnGrid(point))
@@ -45,7 +45,7 @@ data class Board(
         }
     }
 
-    private fun isOnGrid(point: Point): Boolean {
+    fun isOnGrid(point: Point): Boolean {
         if (point.row < 1 || point.row > numRows) return false
         if (point.col < 1 || point.col > numCols) return false
         return true
