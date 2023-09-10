@@ -7,13 +7,13 @@ data class Board(
 ) {
     fun placeStone(player: Player, point: Point) {
         assert(isOnGrid(point))
-        assert(grid[point] != null)
+        assert(grid[point] == null)
 
         val liberties = mutableListOf<Point>()
         val adjacentSameColor = mutableListOf<GoString>()
         val adjacentOppositeColor = mutableListOf<GoString>()
         point.neighbors().forEach { neighbor ->
-            if (isOnGrid(neighbor)) return@forEach
+            if (isOnGrid(neighbor).not()) return@forEach
 
             val neighborString = grid[neighbor]
             if (neighborString == null) {
@@ -21,10 +21,10 @@ data class Board(
             } else if (neighborString.color == player) {
                 if ((neighborString in adjacentSameColor).not()) {
                     adjacentSameColor.add(neighborString)
-                } else {
-                    if ((neighborString in adjacentOppositeColor).not()) {
-                        adjacentOppositeColor.add(neighborString)
-                    }
+                }
+            } else {
+                if ((neighborString in adjacentOppositeColor).not()) {
+                    adjacentOppositeColor.add(neighborString)
                 }
             }
             var newString = GoString(player, listOf(point), liberties)
@@ -49,6 +49,14 @@ data class Board(
         if (point.row < 1 || point.row > numRows) return false
         if (point.col < 1 || point.col > numCols) return false
         return true
+    }
+
+    fun get(point: Point): Player? {
+        return grid[point]?.color
+    }
+
+    fun getGoString(point: Point): GoString? {
+        return grid[point]
     }
 
     private fun removeString(string: GoString) {
