@@ -3,7 +3,7 @@ package com.github.a2kaido.go.model
 class GoString(
     val color: Player,
     val stones: List<Point>,
-    private val liberties: MutableList<Point>,
+    val liberties: MutableList<Point>,
 ) {
     fun addLiberty(point: Point) {
         liberties.add(point)
@@ -20,8 +20,7 @@ class GoString(
         return GoString(
             color = this.color,
             stones = combinedStones,
-            liberties = (liberties + goString.liberties - stones.toSet())
-                .distinct()
+            liberties = ((liberties + goString.liberties).distinct() - combinedStones.toSet())
                 .toMutableList(),
         )
     }
