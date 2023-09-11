@@ -5,6 +5,14 @@ data class Board(
     val numCols: Int,
     val grid: MutableMap<Point, GoString>,
 ) {
+    fun deepCopy() = Board(
+        numRows = numRows,
+        numCols = numCols,
+        grid = grid.mapValues { (_, goString) ->
+            goString.copy()
+        }.toMutableMap()
+    )
+
     fun placeStone(player: Player, point: Point) {
         assert(isOnGrid(point))
         assert(grid[point] == null)

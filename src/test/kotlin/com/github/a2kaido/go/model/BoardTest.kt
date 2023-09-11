@@ -1,5 +1,6 @@
 package com.github.a2kaido.go.model
 
+import com.github.a2kaido.go.ui.printBoard
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -129,5 +130,27 @@ class BoardTest {
             ),
             goString2?.liberties,
         )
+    }
+
+    @Test
+    fun `placeStone get stone by surrounded`() {
+        val surroundedStone = Point(3, 3)
+
+        val board = Board(13, 13, mutableMapOf())
+        board.placeStone(Player.Black, surroundedStone)
+        board.placeStone(Player.White, Point(2, 3))
+        board.placeStone(Player.White, Point(3, 2))
+        board.placeStone(Player.White, Point(3, 4))
+
+        assertEquals(
+            Player.Black,
+            board.get(surroundedStone),
+        )
+
+        // when get black stone
+        board.placeStone(Player.White, Point(4, 3))
+
+        // then null
+        assertNull(board.get(surroundedStone))
     }
 }

@@ -26,4 +26,10 @@ class GoString(
     }
 
     fun numLiberties() = liberties.size
+
+    fun copy() = GoString(
+        color = color,
+        stones = stones.toMutableList(),
+        liberties = liberties.toMutableList(),
+    )
 }

@@ -38,7 +38,7 @@ data class GameState(
 
     private fun isMoveSelfCapture(player: Player, move: Move): Boolean {
         if (move.action !is MoveAction.Play) return false
-        val nextBoard = board.copy(grid = board.grid.toMutableMap())
+        val nextBoard = board.deepCopy()
         nextBoard.placeStone(player, move.action.point)
         val newString = nextBoard.getGoString(move.action.point)
         return newString?.numLiberties() == 0
@@ -52,7 +52,7 @@ data class GameState(
      */
     fun doesMoveViolateKo(player: Player, move: Move): Boolean {
         if (move.action !is MoveAction.Play) return false
-        val nextBoard = board.copy(grid = board.grid.toMutableMap())
+        val nextBoard = board.deepCopy()
         nextBoard.placeStone(player, move.action.point)
         val nextSituation = player.other() to nextBoard
         var pastState = previousState
