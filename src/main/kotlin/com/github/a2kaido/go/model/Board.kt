@@ -1,9 +1,13 @@
 package com.github.a2kaido.go.model
 
+import com.github.a2kaido.go.agent.zobristEmpty
+import com.github.a2kaido.go.agent.zobristHash
+
 data class Board(
     val numRows: Int,
     val numCols: Int,
     val grid: MutableMap<Point, GoString>,
+    private var hash: Long = zobristEmpty,
 ) {
     fun deepCopy() = Board(
         numRows = numRows,
@@ -42,8 +46,14 @@ data class Board(
             newString.stones.forEach {
                 grid[it] = newString
             }
+            hash = hash.xor(zobristHash[point to player]!!)
             adjacentOppositeColor.forEach {
-                it.removeLiberty(point)
+                val replacement = it.withoutLiberty(point)
+                if (replacement.numLiberties() > 0) {
+                    replaceString(it.withoutLiberty(point))
+                } else {
+                    removeString(it)
+                }
             }
             adjacentOppositeColor.forEach {
                 if (it.numLiberties() == 0) {
@@ -67,15 +77,24 @@ data class Board(
         return grid[point]
     }
 
+    private fun replaceString(string: GoString) {
+        string.stones.forEach { point ->
+            grid[point] = string
+        }
+    }
+
     private fun removeString(string: GoString) {
         string.stones.forEach { point ->
             point.neighbors().forEach loop@ { neighbor ->
                 val neighborString = grid[neighbor] ?: return@loop
                 if (neighborString != string) {
-                    neighborString.addLiberty(point)
+                    replaceString(neighborString.withLiberty(point))
                 }
             }
             grid.remove(point)
+            hash = hash.xor(zobristHash[point to string.color]!!)
         }
     }
+
+    fun zobristHash() = hash
 }

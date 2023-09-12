@@ -3,15 +3,27 @@ package com.github.a2kaido.go.model
 class GoString(
     val color: Player,
     val stones: List<Point>,
-    val liberties: MutableList<Point>,
+    val liberties: List<Point>,
 ) {
-    fun addLiberty(point: Point) {
-        liberties.add(point)
-    }
+    fun withoutLiberty(point: Point) = GoString(
+        color = color,
+        stones = stones,
+        liberties = liberties - point,
+    )
 
-    fun removeLiberty(point: Point) {
-        liberties.remove(point)
-    }
+    fun withLiberty(point: Point) = GoString(
+        color = color,
+        stones = stones,
+        liberties = liberties + point,
+    )
+
+//    fun addLiberty(point: Point) {
+//        liberties.add(point)
+//    }
+//
+//    fun removeLiberty(point: Point) {
+//        liberties.remove(point)
+//    }
 
     fun mergedWith(goString: GoString) : GoString {
         assert(goString.color == this.color)

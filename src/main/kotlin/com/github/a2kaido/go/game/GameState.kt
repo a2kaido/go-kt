@@ -11,6 +11,11 @@ data class GameState(
     val previousState: GameState?,
     val lastMove: Move?,
 ) {
+    val previousStates: List<Map<Player, Long>> = if (previousState == null) {
+        listOf()
+    } else {
+        previousState.previousStates + (mapOf(previousState.nextPlayer to previousState.board.zobristHash()))
+    }
 
     fun applyMove(move: Move): GameState {
         val nextBoard: Board
@@ -44,25 +49,14 @@ data class GameState(
         return newString?.numLiberties() == 0
     }
 
-    private val situation: Pair<Player, Board> get() = nextPlayer to board
-
-    /**
-     * This method is slow.
-     * TODO: use faster logic
-     */
-    fun doesMoveViolateKo(player: Player, move: Move): Boolean {
+    private fun doesMoveViolateKo(player: Player, move: Move): Boolean {
         if (move.action !is MoveAction.Play) return false
+
         val nextBoard = board.deepCopy()
         nextBoard.placeStone(player, move.action.point)
-        val nextSituation = player.other() to nextBoard
-        var pastState = previousState
-        while (pastState != null) {
-            if (pastState.situation == nextSituation) {
-                return true
-            }
-            pastState = pastState.previousState
-        }
-        return false
+
+        val nextSituation = mapOf(player.other() to nextBoard.zobristHash())
+        return nextSituation in previousStates
     }
 
     fun isValidMove(move: Move): Boolean {
