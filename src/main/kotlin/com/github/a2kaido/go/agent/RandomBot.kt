@@ -14,9 +14,11 @@ class RandomBot : Agent {
         (1..(gameState.board.numRows)).forEach { row ->
             (1..(gameState.board.numCols)).forEach { col ->
                 val candidate = Point(row, col)
+                val isValid = gameState.isValidMove(Move.play(candidate))
+                val isPointAnEye = isPointAnEye(gameState.board, candidate, gameState.nextPlayer)
+
                 if (
-                    gameState.isValidMove(Move.play(candidate)) &&
-                    isPointAnEye(gameState.board, candidate, gameState.nextPlayer).not()
+                    isValid && isPointAnEye.not()
                ) {
                     candidates.add(candidate)
                 }

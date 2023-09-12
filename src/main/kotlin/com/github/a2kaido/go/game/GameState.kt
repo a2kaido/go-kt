@@ -68,9 +68,11 @@ data class GameState(
                 true
             }
             is MoveAction.Play -> {
+                val isMoveSelfCapture = isMoveSelfCapture(nextPlayer, move)
+                val doesMoveViolateKo = doesMoveViolateKo(nextPlayer, move)
                 board.get(move.action.point) == null &&
-                        isMoveSelfCapture(nextPlayer, move).not() &&
-                        doesMoveViolateKo(nextPlayer, move).not()
+                        isMoveSelfCapture.not() &&
+                        doesMoveViolateKo.not()
             }
         }
     }
