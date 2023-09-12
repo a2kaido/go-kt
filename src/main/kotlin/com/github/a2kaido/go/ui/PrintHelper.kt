@@ -17,10 +17,6 @@ fun printMove(player: Player, move: Move) {
         is MoveAction.Play -> "${COLS[move.action.point.col - 1]}, ${move.action.point.row}"
     }
     println("$player, $moveString")
-
-    if (move.action is MoveAction.Play) {
-        println("debug: board.placeStone(Player.${player}, Point(${move.action.point.row}, ${move.action.point.col}))")
-    }
 }
 
 fun printBoard(board: Board) {
