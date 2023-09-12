@@ -153,4 +153,16 @@ class BoardTest {
         // then null
         assertNull(board.get(surroundedStone))
     }
+
+    @Test
+    fun `placeStone self capture`() {
+        val board = Board(13, 13, mutableMapOf())
+
+        board.placeStone(Player.White, Point(2, 1))
+        board.placeStone(Player.White, Point(1, 2))
+        board.placeStone(Player.Black, Point(1, 1))
+
+        printBoard(board)
+        assertNull(board.get(Point(1, 1)))
+    }
 }

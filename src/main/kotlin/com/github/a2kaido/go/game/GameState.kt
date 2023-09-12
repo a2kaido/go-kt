@@ -11,7 +11,7 @@ data class GameState(
     val previousState: GameState?,
     val lastMove: Move?,
 ) {
-    val previousStates: List<Map<Player, Long>> = if (previousState == null) {
+    private val previousStates: List<Map<Player, Long>> = if (previousState == null) {
         listOf()
     } else {
         previousState.previousStates + (mapOf(previousState.nextPlayer to previousState.board.zobristHash()))

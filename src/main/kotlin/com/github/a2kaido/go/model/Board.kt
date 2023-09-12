@@ -14,7 +14,8 @@ data class Board(
         numCols = numCols,
         grid = grid.mapValues { (_, goString) ->
             goString.copy()
-        }.toMutableMap()
+        }.toMutableMap(),
+        hash = hash,
     )
 
     fun placeStone(player: Player, point: Point) {
