@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Timer
+import java.util.TimerTask
 
 class GameViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(GameUiState())
@@ -55,7 +57,51 @@ class GameViewModel : ViewModel() {
         
         if (gameState.isValidMove(move)) {
             applyMove(move)
+        } else {
+            // Show invalid move feedback
+            _uiState.update { it.copy(invalidMoveAttempt = point) }
+            
+            // Clear the invalid move indicator after a short delay
+            viewModelScope.launch {
+                delay(500)
+                _uiState.update { it.copy(invalidMoveAttempt = null) }
+            }
         }
+    }
+
+    fun onCellHover(row: Int, col: Int) {
+        if (_uiState.value.isThinking || _uiState.value.gameStatus !is GameStatus.ONGOING) {
+            _uiState.update { it.copy(hoverPoint = null) }
+            return
+        }
+        
+        val currentPlayer = gameState.nextPlayer
+        if ((currentPlayer == Player.Black && blackAgent != null) || 
+            (currentPlayer == Player.White && whiteAgent != null)) {
+            _uiState.update { it.copy(hoverPoint = null) }
+            return
+        }
+        
+        val point = Point(row, col)
+        val move = Move.play(point)
+        
+        if (gameState.isValidMove(move)) {
+            _uiState.update { it.copy(hoverPoint = point) }
+        } else {
+            _uiState.update { it.copy(hoverPoint = null) }
+        }
+    }
+
+    fun onHoverExit() {
+        _uiState.update { it.copy(hoverPoint = null) }
+    }
+
+    fun onZoomPanChange(scale: Float, offset: androidx.compose.ui.geometry.Offset) {
+        _uiState.update { it.copy(zoomScale = scale, panOffset = offset) }
+    }
+
+    fun resetZoomPan() {
+        _uiState.update { it.copy(zoomScale = 1f, panOffset = androidx.compose.ui.geometry.Offset.Zero) }
     }
 
     fun onPassClick() {
@@ -213,7 +259,11 @@ class GameViewModel : ViewModel() {
             gameStatus = gameStatus,
             isThinking = _uiState.value.isThinking,
             canUndo = historyIndex > 0,
-            canRedo = historyIndex < gameHistory.size - 1
+            canRedo = historyIndex < gameHistory.size - 1,
+            hoverPoint = _uiState.value.hoverPoint,
+            invalidMoveAttempt = _uiState.value.invalidMoveAttempt,
+            zoomScale = _uiState.value.zoomScale,
+            panOffset = _uiState.value.panOffset
         )
     }
 

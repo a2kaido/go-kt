@@ -2,11 +2,16 @@ package com.github.a2kaido.go.android.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -14,8 +19,10 @@ import androidx.compose.ui.geometry.center
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -35,7 +42,15 @@ fun BoardComposable(
     modifier: Modifier = Modifier,
     showCoordinates: Boolean = true,
     onCellClick: (Int, Int) -> Unit = { _, _ -> },
-    enabled: Boolean = true
+    onCellHover: (Int, Int) -> Unit = { _, _ -> },
+    onHoverExit: () -> Unit = {},
+    enabled: Boolean = true,
+    currentPlayer: Player = Player.Black,
+    hoverPoint: Point? = null,
+    invalidMoveAttempt: Point? = null,
+    onZoomPanChange: (Float, Offset) -> Unit = { _, _ -> },
+    zoomScale: Float = 1f,
+    panOffset: Offset = Offset.Zero
 ) {
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
@@ -51,6 +66,16 @@ fun BoardComposable(
     val whiteStoneColor = Color(0xFFF5F5F5)
     val stoneShadowColor = Color(0x40000000)
     
+    // State for gesture handling
+    var scale by remember { mutableStateOf(zoomScale) }
+    var offset by remember { mutableStateOf(panOffset) }
+    
+    // Update scale and offset when external state changes
+    LaunchedEffect(zoomScale, panOffset) {
+        scale = zoomScale
+        offset = panOffset
+    }
+    
     Box(
         modifier = modifier
             .aspectRatio(1f)
@@ -63,26 +88,112 @@ fun BoardComposable(
                     )
                 )
             )
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                translationX = offset.x
+                translationY = offset.y
+            }
+            .pointerInput(boardSize > 9, enabled) {
+                if (boardSize > 9) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        val newScale = (scale * zoom).coerceIn(1f, 3f)
+                        val newOffset = if (newScale > 1f) {
+                            offset + pan
+                        } else {
+                            Offset.Zero
+                        }
+                        scale = newScale
+                        offset = newOffset
+                        onZoomPanChange(newScale, newOffset)
+                    }
+                }
+            }
     ) {
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(enabled) {
-                    detectTapGestures { offset ->
-                        if (enabled) {
-                            val boardSizePx = size.width.coerceAtMost(size.height).toFloat()
-                            val coordinateOffset = if (showCoordinates) 30.dp.toPx() else 0f
-                            val gridSize = boardSizePx - (coordinateOffset * 2)
-                            val cellSize = gridSize / (boardSize - 1)
-                            
-                            val col = ((offset.x - coordinateOffset + cellSize / 2) / cellSize).toInt() + 1
-                            val row = ((offset.y - coordinateOffset + cellSize / 2) / cellSize).toInt() + 1
-                            
-                            if (row in 1..boardSize && col in 1..boardSize) {
-                                onCellClick(row, col)
+                    detectTapGestures(
+                        onTap = { tapOffset ->
+                            if (enabled) {
+                                val boardSizePx = size.width.coerceAtMost(size.height).toFloat()
+                                val coordinateOffset = if (showCoordinates) 30.dp.toPx() else 0f
+                                val gridSize = boardSizePx - (coordinateOffset * 2)
+                                val cellSize = gridSize / (boardSize - 1)
+                                
+                                // Adjust for zoom and pan
+                                val adjustedOffset = Offset(
+                                    (tapOffset.x - offset.x) / scale,
+                                    (tapOffset.y - offset.y) / scale
+                                )
+                                
+                                val col = ((adjustedOffset.x - coordinateOffset + cellSize / 2) / cellSize).toInt() + 1
+                                val row = ((adjustedOffset.y - coordinateOffset + cellSize / 2) / cellSize).toInt() + 1
+                                
+                                if (row in 1..boardSize && col in 1..boardSize) {
+                                    onCellClick(row, col)
+                                }
                             }
                         }
-                    }
+                    )
+                }
+                .pointerInput(enabled, scale, offset) {
+                    var currentPosition = Offset.Zero
+                    detectDragGestures(
+                        onDragStart = { dragOffset ->
+                            if (enabled) {
+                                currentPosition = dragOffset
+                                val boardSizePx = size.width.coerceAtMost(size.height).toFloat()
+                                val coordinateOffset = if (showCoordinates) 30.dp.toPx() else 0f
+                                val gridSize = boardSizePx - (coordinateOffset * 2)
+                                val cellSize = gridSize / (boardSize - 1)
+                                
+                                // Adjust for zoom and pan
+                                val adjustedOffset = Offset(
+                                    (dragOffset.x - offset.x) / scale,
+                                    (dragOffset.y - offset.y) / scale
+                                )
+                                
+                                val col = ((adjustedOffset.x - coordinateOffset + cellSize / 2) / cellSize).toInt() + 1
+                                val row = ((adjustedOffset.y - coordinateOffset + cellSize / 2) / cellSize).toInt() + 1
+                                
+                                if (row in 1..boardSize && col in 1..boardSize) {
+                                    onCellHover(row, col)
+                                }
+                            }
+                        },
+                        onDrag = { change, _ ->
+                            if (enabled) {
+                                currentPosition = change.position
+                                val boardSizePx = size.width.coerceAtMost(size.height).toFloat()
+                                val coordinateOffset = if (showCoordinates) 30.dp.toPx() else 0f
+                                val gridSize = boardSizePx - (coordinateOffset * 2)
+                                val cellSize = gridSize / (boardSize - 1)
+                                
+                                // Adjust for zoom and pan
+                                val adjustedOffset = Offset(
+                                    (currentPosition.x - offset.x) / scale,
+                                    (currentPosition.y - offset.y) / scale
+                                )
+                                
+                                val col = ((adjustedOffset.x - coordinateOffset + cellSize / 2) / cellSize).toInt() + 1
+                                val row = ((adjustedOffset.y - coordinateOffset + cellSize / 2) / cellSize).toInt() + 1
+                                
+                                if (row in 1..boardSize && col in 1..boardSize) {
+                                    onCellHover(row, col)
+                                } else {
+                                    onHoverExit()
+                                }
+                            }
+                        },
+                        onDragEnd = {
+                            onHoverExit()
+                        },
+                        onDragCancel = {
+                            onHoverExit()
+                        }
+                    )
                 }
         ) {
             val boardSizePx = minOf(size.width, size.height)
@@ -132,6 +243,27 @@ fun BoardComposable(
                 stoneShadowColor = stoneShadowColor,
                 lastMove = lastMove
             )
+            
+            // Draw ghost stone
+            if (hoverPoint != null && enabled) {
+                drawGhostStone(
+                    point = hoverPoint,
+                    player = currentPlayer,
+                    cellSize = cellSize,
+                    gridOffset = gridOffset,
+                    blackStoneColor = blackStoneColor,
+                    whiteStoneColor = whiteStoneColor
+                )
+            }
+            
+            // Draw invalid move indicator
+            if (invalidMoveAttempt != null) {
+                drawInvalidMoveIndicator(
+                    point = invalidMoveAttempt,
+                    cellSize = cellSize,
+                    gridOffset = gridOffset
+                )
+            }
         }
     }
 }
@@ -324,6 +456,66 @@ private fun DrawScope.drawStones(
             )
         }
     }
+}
+
+private fun DrawScope.drawGhostStone(
+    point: Point,
+    player: Player,
+    cellSize: Float,
+    gridOffset: Offset,
+    blackStoneColor: Color,
+    whiteStoneColor: Color
+) {
+    val x = gridOffset.x + (point.col - 1) * cellSize
+    val y = gridOffset.y + (point.row - 1) * cellSize
+    val center = Offset(x, y)
+    val stoneRadius = cellSize * 0.4f
+    
+    // Draw semi-transparent stone
+    val ghostColor = when (player) {
+        Player.Black -> blackStoneColor.copy(alpha = 0.5f)
+        Player.White -> whiteStoneColor.copy(alpha = 0.5f)
+    }
+    
+    drawCircle(
+        color = ghostColor,
+        radius = stoneRadius,
+        center = center
+    )
+    
+    // Draw border
+    drawCircle(
+        color = if (player == Player.White) Color(0x66CCCCCC) else Color(0x66444444),
+        radius = stoneRadius,
+        center = center,
+        style = Stroke(width = 1.dp.toPx())
+    )
+}
+
+private fun DrawScope.drawInvalidMoveIndicator(
+    point: Point,
+    cellSize: Float,
+    gridOffset: Offset
+) {
+    val x = gridOffset.x + (point.col - 1) * cellSize
+    val y = gridOffset.y + (point.row - 1) * cellSize
+    val center = Offset(x, y)
+    val crossSize = cellSize * 0.3f
+    
+    // Draw red X
+    val strokeWidth = 3.dp.toPx()
+    drawLine(
+        color = Color.Red,
+        start = center + Offset(-crossSize, -crossSize),
+        end = center + Offset(crossSize, crossSize),
+        strokeWidth = strokeWidth
+    )
+    drawLine(
+        color = Color.Red,
+        start = center + Offset(-crossSize, crossSize),
+        end = center + Offset(crossSize, -crossSize),
+        strokeWidth = strokeWidth
+    )
 }
 
 private fun getStarPoints(numRows: Int, numCols: Int): List<Point> {

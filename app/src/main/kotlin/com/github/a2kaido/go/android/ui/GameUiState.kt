@@ -3,6 +3,8 @@ package com.github.a2kaido.go.android.ui
 import com.github.a2kaido.go.model.Player
 import com.github.a2kaido.go.model.Point
 
+import androidx.compose.ui.geometry.Offset
+
 data class GameUiState(
     val boardSize: Int = 9,
     val boardState: Map<Point, Player> = emptyMap(),
@@ -13,7 +15,11 @@ data class GameUiState(
     val gameStatus: GameStatus = GameStatus.ONGOING,
     val isThinking: Boolean = false,
     val canUndo: Boolean = false,
-    val canRedo: Boolean = false
+    val canRedo: Boolean = false,
+    val hoverPoint: Point? = null,
+    val invalidMoveAttempt: Point? = null,
+    val zoomScale: Float = 1f,
+    val panOffset: Offset = Offset.Zero
 )
 
 sealed class GameStatus {
