@@ -14,10 +14,17 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.github.a2kaido.go.android.navigation.NavigationRoutes
 import com.github.a2kaido.go.android.ui.BoardComposable
 import com.github.a2kaido.go.android.ui.FinishReason
 import com.github.a2kaido.go.android.ui.GameStatus
 import com.github.a2kaido.go.android.ui.GameUiState
+import com.github.a2kaido.go.android.ui.screens.*
 import com.github.a2kaido.go.android.ui.theme.GoGameTheme
 import com.github.a2kaido.go.android.viewmodel.GameViewModel
 import com.github.a2kaido.go.model.Player
@@ -33,16 +40,82 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    val navController = rememberNavController()
                     val uiState by gameViewModel.uiState.collectAsStateWithLifecycle()
-                    GoGameScreen(
-                        uiState = uiState,
-                        onCellClick = gameViewModel::onCellClick,
-                        onPassClick = gameViewModel::onPassClick,
-                        onResignClick = gameViewModel::onResignClick,
-                        onUndoClick = gameViewModel::onUndoClick,
-                        onRedoClick = gameViewModel::onRedoClick,
-                        onNewGameClick = gameViewModel::onNewGameClick
-                    )
+                    
+                    NavHost(
+                        navController = navController,
+                        startDestination = NavigationRoutes.MainMenu.route
+                    ) {
+                        composable(NavigationRoutes.MainMenu.route) {
+                            MainMenuScreen(
+                                onNewGame = { navController.navigate(NavigationRoutes.GameSetup.route) },
+                                onContinueGame = { navController.navigate(NavigationRoutes.Game.route) },
+                                onSettings = { navController.navigate(NavigationRoutes.Settings.route) },
+                                onAbout = { /* TODO: Implement about screen or dialog */ }
+                            )
+                        }
+                        
+                        composable(NavigationRoutes.GameSetup.route) {
+                            GameSetupScreen(
+                                onStartGame = { boardSize, playerType, handicap ->
+                                    gameViewModel.onNewGameClick(boardSize)
+                                    navController.navigate(NavigationRoutes.Game.route)
+                                },
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+                        
+                        composable(NavigationRoutes.Game.route) {
+                            GoGameScreen(
+                                uiState = uiState,
+                                onCellClick = gameViewModel::onCellClick,
+                                onPassClick = gameViewModel::onPassClick,
+                                onResignClick = gameViewModel::onResignClick,
+                                onUndoClick = gameViewModel::onUndoClick,
+                                onRedoClick = gameViewModel::onRedoClick,
+                                onNewGameClick = gameViewModel::onNewGameClick,
+                                onBackToMenu = { navController.navigate(NavigationRoutes.MainMenu.route) },
+                                onGameOver = { winner, score ->
+                                    navController.navigate(NavigationRoutes.GameOver.createRoute(winner, score))
+                                }
+                            )
+                        }
+                        
+                        composable(NavigationRoutes.Settings.route) {
+                            SettingsScreen(
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+                        
+                        composable(
+                            route = NavigationRoutes.GameOver.route,
+                            arguments = listOf(
+                                navArgument("winner") { type = NavType.StringType },
+                                navArgument("score") { type = NavType.StringType }
+                            )
+                        ) { backStackEntry ->
+                            val winner = backStackEntry.arguments?.getString("winner") ?: ""
+                            val score = backStackEntry.arguments?.getString("score") ?: ""
+                            
+                            GameOverScreen(
+                                winner = winner,
+                                score = score,
+                                onRematch = { 
+                                    navController.navigate(NavigationRoutes.GameSetup.route) {
+                                        popUpTo(NavigationRoutes.MainMenu.route)
+                                    }
+                                },
+                                onBackToMenu = { 
+                                    navController.navigate(NavigationRoutes.MainMenu.route) {
+                                        popUpTo(NavigationRoutes.MainMenu.route) {
+                                            inclusive = true
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -58,6 +131,8 @@ fun GoGameScreen(
     onUndoClick: () -> Unit,
     onRedoClick: () -> Unit,
     onNewGameClick: (Int) -> Unit,
+    onBackToMenu: (() -> Unit)? = null,
+    onGameOver: ((String, String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -98,6 +173,14 @@ fun GoGameScreen(
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
+                
+                // Auto-navigate to game over screen if callback is provided
+                LaunchedEffect(status) {
+                    onGameOver?.invoke(
+                        status.winner?.name ?: "Draw",
+                        "Black: ${uiState.blackCaptures} captures, White: ${uiState.whiteCaptures} captures"
+                    )
+                }
             }
         }
         
@@ -156,12 +239,25 @@ fun GoGameScreen(
         
         Spacer(modifier = Modifier.height(8.dp))
         
-        // New game button
-        Button(
-            onClick = { onNewGameClick(9) },
-            enabled = !uiState.isThinking
+        // New game and menu buttons
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("New Game")
+            Button(
+                onClick = { onNewGameClick(9) },
+                enabled = !uiState.isThinking
+            ) {
+                Text("New Game")
+            }
+            
+            if (onBackToMenu != null) {
+                OutlinedButton(
+                    onClick = onBackToMenu,
+                    enabled = !uiState.isThinking
+                ) {
+                    Text("Menu")
+                }
+            }
         }
     }
 }
