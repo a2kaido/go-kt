@@ -2,10 +2,11 @@ package com.github.a2kaido.go.android.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -13,6 +14,7 @@ import androidx.compose.ui.geometry.center
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -22,16 +24,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.a2kaido.go.android.ui.theme.GoGameTheme
-import com.github.a2kaido.go.model.Board
 import com.github.a2kaido.go.model.Player
 import com.github.a2kaido.go.model.Point
 
 @Composable
 fun BoardComposable(
-    board: Board,
+    boardState: Map<Point, Player>,
+    boardSize: Int,
+    lastMove: Point? = null,
     modifier: Modifier = Modifier,
     showCoordinates: Boolean = true,
-    onIntersectionClick: ((Point) -> Unit)? = null
+    onCellClick: (Int, Int) -> Unit = { _, _ -> },
+    enabled: Boolean = true
 ) {
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
@@ -61,18 +65,36 @@ fun BoardComposable(
             )
     ) {
         Canvas(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(enabled) {
+                    detectTapGestures { offset ->
+                        if (enabled) {
+                            val boardSizePx = size.width.coerceAtMost(size.height).toFloat()
+                            val coordinateOffset = if (showCoordinates) 30.dp.toPx() else 0f
+                            val gridSize = boardSizePx - (coordinateOffset * 2)
+                            val cellSize = gridSize / (boardSize - 1)
+                            
+                            val col = ((offset.x - coordinateOffset + cellSize / 2) / cellSize).toInt() + 1
+                            val row = ((offset.y - coordinateOffset + cellSize / 2) / cellSize).toInt() + 1
+                            
+                            if (row in 1..boardSize && col in 1..boardSize) {
+                                onCellClick(row, col)
+                            }
+                        }
+                    }
+                }
         ) {
-            val boardSize = size.minDimension
+            val boardSizePx = minOf(size.width, size.height)
             val coordinateOffset = if (showCoordinates) 30.dp.toPx() else 0f
-            val gridSize = boardSize - (coordinateOffset * 2)
-            val cellSize = gridSize / (board.numCols - 1)
+            val gridSize = boardSizePx - (coordinateOffset * 2)
+            val cellSize = gridSize / (boardSize - 1)
             val gridOffset = Offset(coordinateOffset, coordinateOffset)
             
             // Draw grid lines
             drawGridLines(
-                numRows = board.numRows,
-                numCols = board.numCols,
+                numRows = boardSize,
+                numCols = boardSize,
                 cellSize = cellSize,
                 gridOffset = gridOffset,
                 lineColor = lineColor
@@ -80,8 +102,8 @@ fun BoardComposable(
             
             // Draw star points
             drawStarPoints(
-                numRows = board.numRows,
-                numCols = board.numCols,
+                numRows = boardSize,
+                numCols = boardSize,
                 cellSize = cellSize,
                 gridOffset = gridOffset,
                 starPointColor = starPointColor
@@ -90,8 +112,8 @@ fun BoardComposable(
             // Draw coordinates
             if (showCoordinates) {
                 drawCoordinates(
-                    numRows = board.numRows,
-                    numCols = board.numCols,
+                    numRows = boardSize,
+                    numCols = boardSize,
                     cellSize = cellSize,
                     gridOffset = gridOffset,
                     coordinateColor = coordinateColor,
@@ -102,12 +124,13 @@ fun BoardComposable(
             
             // Draw stones
             drawStones(
-                board = board,
+                boardState = boardState,
                 cellSize = cellSize,
                 gridOffset = gridOffset,
                 blackStoneColor = blackStoneColor,
                 whiteStoneColor = whiteStoneColor,
-                stoneShadowColor = stoneShadowColor
+                stoneShadowColor = stoneShadowColor,
+                lastMove = lastMove
             )
         }
     }
@@ -233,66 +256,71 @@ private fun DrawScope.drawCoordinates(
 }
 
 private fun DrawScope.drawStones(
-    board: Board,
+    boardState: Map<Point, Player>,
     cellSize: Float,
     gridOffset: Offset,
     blackStoneColor: Color,
     whiteStoneColor: Color,
-    stoneShadowColor: Color
+    stoneShadowColor: Color,
+    lastMove: Point?
 ) {
     val stoneRadius = cellSize * 0.4f
     val shadowOffset = 2.dp.toPx()
     
-    board.grid.values.forEach { goString ->
-        val stoneColor = when (goString.color) {
-            Player.Black -> blackStoneColor
-            Player.White -> whiteStoneColor
+    boardState.forEach { (point, player) ->
+        val x = gridOffset.x + (point.col - 1) * cellSize
+        val y = gridOffset.y + (point.row - 1) * cellSize
+        val center = Offset(x, y)
+        
+        // Draw shadow
+        drawCircle(
+            color = stoneShadowColor,
+            radius = stoneRadius,
+            center = center + Offset(shadowOffset, shadowOffset)
+        )
+        
+        // Draw stone with gradient
+        val stoneGradient = when (player) {
+            Player.Black -> Brush.radialGradient(
+                colors = listOf(
+                    blackStoneColor.copy(alpha = 0.8f),
+                    blackStoneColor
+                ),
+                center = center - Offset(stoneRadius * 0.3f, stoneRadius * 0.3f),
+                radius = stoneRadius * 1.2f
+            )
+            Player.White -> Brush.radialGradient(
+                colors = listOf(
+                    whiteStoneColor,
+                    whiteStoneColor.copy(alpha = 0.9f)
+                ),
+                center = center - Offset(stoneRadius * 0.3f, stoneRadius * 0.3f),
+                radius = stoneRadius * 1.2f
+            )
         }
         
-        goString.stones.forEach { point ->
-            val x = gridOffset.x + (point.col - 1) * cellSize
-            val y = gridOffset.y + (point.row - 1) * cellSize
-            val center = Offset(x, y)
-            
-            // Draw shadow
+        drawCircle(
+            brush = stoneGradient,
+            radius = stoneRadius,
+            center = center
+        )
+        
+        // Draw stone border
+        drawCircle(
+            color = if (player == Player.White) Color(0xFFCCCCCC) else Color(0xFF444444),
+            radius = stoneRadius,
+            center = center,
+            style = Stroke(width = 1.dp.toPx())
+        )
+        
+        // Mark last move
+        if (point == lastMove) {
+            val markColor = if (player == Player.Black) Color.White else Color.Black
             drawCircle(
-                color = stoneShadowColor,
-                radius = stoneRadius,
-                center = center + Offset(shadowOffset, shadowOffset)
-            )
-            
-            // Draw stone with gradient
-            val stoneGradient = when (goString.color) {
-                Player.Black -> Brush.radialGradient(
-                    colors = listOf(
-                        blackStoneColor.copy(alpha = 0.8f),
-                        blackStoneColor
-                    ),
-                    center = center - Offset(stoneRadius * 0.3f, stoneRadius * 0.3f),
-                    radius = stoneRadius * 1.2f
-                )
-                Player.White -> Brush.radialGradient(
-                    colors = listOf(
-                        whiteStoneColor,
-                        whiteStoneColor.copy(alpha = 0.9f)
-                    ),
-                    center = center - Offset(stoneRadius * 0.3f, stoneRadius * 0.3f),
-                    radius = stoneRadius * 1.2f
-                )
-            }
-            
-            drawCircle(
-                brush = stoneGradient,
-                radius = stoneRadius,
-                center = center
-            )
-            
-            // Draw stone border
-            drawCircle(
-                color = if (goString.color == Player.White) Color(0xFFCCCCCC) else Color(0xFF444444),
-                radius = stoneRadius,
+                color = markColor,
+                radius = stoneRadius * 0.3f,
                 center = center,
-                style = Stroke(width = 1.dp.toPx())
+                style = Stroke(width = 2.dp.toPx())
             )
         }
     }
@@ -323,14 +351,16 @@ private fun getStarPoints(numRows: Int, numCols: Int): List<Point> {
 @Composable
 fun BoardComposablePreview() {
     GoGameTheme {
-        val board = Board(9, 9, mutableMapOf())
-        // Add some sample stones for preview
-        board.placeStone(Player.Black, Point(3, 3))
-        board.placeStone(Player.White, Point(4, 4))
-        board.placeStone(Player.Black, Point(5, 5))
+        val boardState = mapOf(
+            Point(3, 3) to Player.Black,
+            Point(4, 4) to Player.White,
+            Point(5, 5) to Player.Black
+        )
         
         BoardComposable(
-            board = board,
+            boardState = boardState,
+            boardSize = 9,
+            lastMove = Point(5, 5),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
