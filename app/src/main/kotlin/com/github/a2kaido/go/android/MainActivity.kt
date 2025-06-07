@@ -70,6 +70,10 @@ class MainActivity : ComponentActivity() {
                             GoGameScreen(
                                 uiState = uiState,
                                 onCellClick = gameViewModel::onCellClick,
+                                onCellHover = gameViewModel::onCellHover,
+                                onHoverExit = gameViewModel::onHoverExit,
+                                onZoomPanChange = gameViewModel::onZoomPanChange,
+                                onResetZoomPan = gameViewModel::resetZoomPan,
                                 onPassClick = gameViewModel::onPassClick,
                                 onResignClick = gameViewModel::onResignClick,
                                 onUndoClick = gameViewModel::onUndoClick,
@@ -126,6 +130,10 @@ class MainActivity : ComponentActivity() {
 fun GoGameScreen(
     uiState: GameUiState,
     onCellClick: (Int, Int) -> Unit,
+    onCellHover: (Int, Int) -> Unit = { _, _ -> },
+    onHoverExit: () -> Unit = {},
+    onZoomPanChange: (Float, androidx.compose.ui.geometry.Offset) -> Unit = { _, _ -> },
+    onResetZoomPan: () -> Unit = {},
     onPassClick: () -> Unit,
     onResignClick: () -> Unit,
     onUndoClick: () -> Unit,
@@ -199,13 +207,31 @@ fun GoGameScreen(
             boardSize = uiState.boardSize,
             lastMove = uiState.lastMove,
             onCellClick = onCellClick,
+            onCellHover = onCellHover,
+            onHoverExit = onHoverExit,
             enabled = !uiState.isThinking && uiState.gameStatus is GameStatus.ONGOING,
+            currentPlayer = uiState.currentPlayer,
+            hoverPoint = uiState.hoverPoint,
+            invalidMoveAttempt = uiState.invalidMoveAttempt,
+            onZoomPanChange = onZoomPanChange,
+            zoomScale = uiState.zoomScale,
+            panOffset = uiState.panOffset,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         )
         
         Spacer(modifier = Modifier.height(16.dp))
+        
+        // Reset zoom button (only show when zoomed)
+        if (uiState.zoomScale > 1f && uiState.boardSize > 9) {
+            Button(
+                onClick = onResetZoomPan,
+                modifier = Modifier.padding(bottom = 8.dp)
+            ) {
+                Text("Reset Zoom")
+            }
+        }
         
         // Game controls
         Row(
