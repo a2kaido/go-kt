@@ -110,11 +110,13 @@ data class GameState(
                 true
             }
             is MoveAction.Play -> {
+                // Check if point is empty first
+                if (board.get(move.action.point) != null) return false
+                
                 val isMoveSelfCapture = isMoveSelfCapture(nextPlayer, move)
                 val doesMoveViolateKo = doesMoveViolateKo(nextPlayer, move)
-                board.get(move.action.point) == null &&
-                        isMoveSelfCapture.not() &&
-                        doesMoveViolateKo.not()
+                
+                !isMoveSelfCapture && !doesMoveViolateKo
             }
         }
     }
