@@ -62,6 +62,12 @@ data class Board(
                 removeString(it)
             }
         }
+        
+        // Check for self-capture after opponent captures
+        if (newString.numLiberties() == 0) {
+            // Self-capture is not allowed - remove the stone we just placed
+            removeString(newString)
+        }
     }
 
     fun isOnGrid(point: Point): Boolean {

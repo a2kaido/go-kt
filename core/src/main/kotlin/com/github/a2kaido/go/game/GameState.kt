@@ -4,6 +4,8 @@ import com.github.a2kaido.go.model.Board
 import com.github.a2kaido.go.model.Move
 import com.github.a2kaido.go.model.MoveAction
 import com.github.a2kaido.go.model.Player
+import com.github.a2kaido.go.model.Point
+import com.github.a2kaido.go.model.GoString
 
 data class GameState(
     val board: Board,
@@ -43,10 +45,50 @@ data class GameState(
 
     private fun isMoveSelfCapture(player: Player, move: Move): Boolean {
         if (move.action !is MoveAction.Play) return false
-        val nextBoard = board.deepCopy()
-        nextBoard.placeStone(player, move.action.point)
-        val newString = nextBoard.getGoString(move.action.point)
-        return newString?.numLiberties() == 0
+        val point = move.action.point
+        
+        // Check if the move would result in self-capture
+        // We need to check before the Board automatically removes self-capturing stones
+        val liberties = mutableListOf<Point>()
+        val adjacentSameColor = mutableListOf<GoString>()
+        val adjacentOppositeColor = mutableListOf<GoString>()
+        
+        point.neighbors().forEach { neighbor ->
+            if (board.isOnGrid(neighbor).not()) return@forEach
+            
+            val neighborString = board.getGoString(neighbor)
+            if (neighborString == null) {
+                liberties.add(neighbor)
+            } else if (neighborString.color == player) {
+                if ((neighborString in adjacentSameColor).not()) {
+                    adjacentSameColor.add(neighborString)
+                }
+            } else {
+                if ((neighborString in adjacentOppositeColor).not()) {
+                    adjacentOppositeColor.add(neighborString)
+                }
+            }
+        }
+        
+        // Calculate liberties after merging with same-color groups
+        var totalLiberties: MutableSet<Point> = liberties.toMutableSet()
+        adjacentSameColor.forEach { sameColorString ->
+            totalLiberties.addAll(sameColorString.liberties)
+        }
+        
+        // Remove the point we're placing on (it won't be a liberty anymore)
+        totalLiberties.remove(point)
+        
+        // Check if any opponent groups would be captured
+        val wouldCaptureOpponent = adjacentOppositeColor.any { opponentString ->
+            opponentString.liberties.size == 1 && point in opponentString.liberties
+        }
+        
+        // If we would capture opponent stones, the move is not self-capture
+        if (wouldCaptureOpponent) return false
+        
+        // If we have no liberties after placement, it's self-capture
+        return totalLiberties.isEmpty()
     }
 
     private fun doesMoveViolateKo(player: Player, move: Move): Boolean {
