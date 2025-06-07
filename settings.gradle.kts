@@ -1,5 +1,6 @@
 pluginManagement {
     repositories {
+        google()
         mavenCentral()
         gradlePluginPortal()
     }
@@ -10,3 +11,6 @@ plugins {
 }
 
 rootProject.name = "go-kt"
+
+include(":core")
+include(":app")

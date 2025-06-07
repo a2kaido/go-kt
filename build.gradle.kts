@@ -1,22 +1,17 @@
 plugins {
-    kotlin("jvm") version "1.9.0"
+    kotlin("jvm") version "2.0.21" apply false
+    kotlin("android") version "2.0.21" apply false
+    id("com.android.application") version "8.7.2" apply false
+    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21" apply false
 }
 
-group = "com.github.a2kaido"
-version = "1.0-SNAPSHOT"
-
-repositories {
-    mavenCentral()
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
 }
 
-dependencies {
-    testImplementation(kotlin("test"))
-}
-
-tasks.test {
-    useJUnitPlatform()
-}
-
-kotlin {
-    jvmToolchain(8)
+tasks.register("clean", Delete::class) {
+    delete(rootProject.layout.buildDirectory)
 }
