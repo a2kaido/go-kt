@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.sp
 fun MainMenuScreen(
     onNewGame: () -> Unit,
     onContinueGame: () -> Unit,
+    onSavedGames: () -> Unit,
     onSettings: () -> Unit,
     onAbout: () -> Unit,
     modifier: Modifier = Modifier
@@ -60,6 +61,19 @@ fun MainMenuScreen(
             ) {
                 Text(
                     text = "Continue Game",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            
+            OutlinedButton(
+                onClick = onSavedGames,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Text(
+                    text = "Saved Games",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 )

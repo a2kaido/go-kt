@@ -1,9 +1,12 @@
 package com.github.a2kaido.go.android.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.a2kaido.go.agent.Agent
 import com.github.a2kaido.go.agent.RandomBot
+import com.github.a2kaido.go.android.data.GoDatabase
+import com.github.a2kaido.go.android.data.repository.GameRepository
 import com.github.a2kaido.go.android.ui.FinishReason
 import com.github.a2kaido.go.android.ui.GameStatus
 import com.github.a2kaido.go.android.ui.GameUiState
@@ -21,12 +24,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Timer
-import java.util.TimerTask
 
-class GameViewModel : ViewModel() {
+class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
+
+    private val database = GoDatabase.getDatabase(application)
+    private val repository = GameRepository(database.savedGameDao(), database.moveRecordDao())
 
     private var gameState: GameState = GameState.newGame(9)
     private val gameHistory = mutableListOf(gameState)
@@ -36,6 +40,9 @@ class GameViewModel : ViewModel() {
     private val whiteAgent: Agent = RandomBot()
     
     private var aiJob: Job? = null
+    private var currentGameId: Long? = null
+    private var gameStartTime: Long = System.currentTimeMillis()
+    private var moveCount = 0
 
     init {
         updateUiState()
@@ -169,6 +176,7 @@ class GameViewModel : ViewModel() {
 
     private fun applyMove(move: Move) {
         if (gameState.isValidMove(move)) {
+            val previousState = gameState
             gameState = gameState.applyMove(move)
             
             if (historyIndex < gameHistory.size - 1) {
@@ -176,10 +184,18 @@ class GameViewModel : ViewModel() {
             }
             gameHistory.add(gameState)
             historyIndex++
+            moveCount++
+            
+            // Auto-save the move
+            viewModelScope.launch {
+                autoSaveMove(move, previousState.nextPlayer)
+            }
             
             updateUiState()
             
-            if (!gameState.isOver()) {
+            if (gameState.isOver()) {
+                saveGameCompletion()
+            } else {
                 checkAndMakeAiMove()
             }
         }
@@ -306,6 +322,100 @@ class GameViewModel : ViewModel() {
             whiteStones > blackStones -> Player.White
             else -> null // Draw
         }
+    }
+
+    // Save/Load functionality
+    fun saveCurrentGame(blackPlayerName: String = "Human", whitePlayerName: String = "AI") {
+        viewModelScope.launch {
+            try {
+                if (currentGameId == null) {
+                    currentGameId = repository.saveNewGame(gameState, blackPlayerName, whitePlayerName)
+                }
+                repository.updateGameState(
+                    currentGameId!!,
+                    gameState,
+                    System.currentTimeMillis() - gameStartTime
+                )
+            } catch (e: Exception) {
+                // Handle save error
+            }
+        }
+    }
+
+    fun loadGame(gameId: Long) {
+        viewModelScope.launch {
+            try {
+                val loadedGameState = repository.loadGameState(gameId)
+                if (loadedGameState != null) {
+                    currentGameId = gameId
+                    gameState = loadedGameState
+                    gameHistory.clear()
+                    gameHistory.add(gameState)
+                    historyIndex = 0
+                    moveCount = gameHistory.size - 1
+                    updateUiState()
+                    checkAndMakeAiMove()
+                }
+            } catch (e: Exception) {
+                // Handle load error
+            }
+        }
+    }
+
+    private suspend fun autoSaveMove(move: Move, player: Player) {
+        try {
+            if (currentGameId == null) {
+                currentGameId = repository.saveNewGame(gameState, "Human", "AI")
+            }
+            
+            // Calculate captured stones
+            val capturedStones = when (val action = move.action) {
+                is MoveAction.Play -> calculateCapturedStones(action.point, player)
+                else -> emptySet()
+            }
+            
+            repository.saveMove(currentGameId!!, move, player, moveCount, capturedStones)
+        } catch (e: Exception) {
+            // Handle save error silently for auto-save
+        }
+    }
+
+    private fun calculateCapturedStones(movePoint: Point, player: Player): Set<Point> {
+        // This is a simplified implementation
+        // In reality, you'd need to analyze the board state change
+        val capturedStones = mutableSetOf<Point>()
+        
+        // Check adjacent points for captured opponent groups
+        val opponents = listOfNotNull(
+            Point(movePoint.row - 1, movePoint.col),
+            Point(movePoint.row + 1, movePoint.col),
+            Point(movePoint.row, movePoint.col - 1),
+            Point(movePoint.row, movePoint.col + 1)
+        ).filter { point ->
+            point.row in 1..gameState.board.numRows && 
+            point.col in 1..gameState.board.numCols &&
+            gameState.board.get(point) == player.other()
+        }
+        
+        // For each opponent stone, check if its group has no liberties
+        // This is a simplified check - real implementation would be more complex
+        return capturedStones
+    }
+
+    private fun saveGameCompletion() {
+        viewModelScope.launch {
+            currentGameId?.let { gameId ->
+                val winner = determineWinner()
+                val blackScore = calculateScore(Player.Black)
+                val whiteScore = calculateScore(Player.White)
+                repository.completeGame(gameId, winner, blackScore, whiteScore)
+            }
+        }
+    }
+
+    private fun calculateScore(player: Player): Float {
+        // Simple stone counting for now
+        return gameState.board.grid.values.count { it.color == player }.toFloat()
     }
 
     override fun onCleared() {

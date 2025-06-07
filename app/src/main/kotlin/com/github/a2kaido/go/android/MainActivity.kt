@@ -27,10 +27,12 @@ import com.github.a2kaido.go.android.ui.GameUiState
 import com.github.a2kaido.go.android.ui.screens.*
 import com.github.a2kaido.go.android.ui.theme.GoGameTheme
 import com.github.a2kaido.go.android.viewmodel.GameViewModel
+import com.github.a2kaido.go.android.viewmodel.SavedGamesViewModel
 import com.github.a2kaido.go.model.Player
 
 class MainActivity : ComponentActivity() {
     private val gameViewModel: GameViewModel by viewModels()
+    private val savedGamesViewModel: SavedGamesViewModel by viewModels()
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity() {
                             MainMenuScreen(
                                 onNewGame = { navController.navigate(NavigationRoutes.GameSetup.route) },
                                 onContinueGame = { navController.navigate(NavigationRoutes.Game.route) },
+                                onSavedGames = { navController.navigate(NavigationRoutes.SavedGames.route) },
                                 onSettings = { navController.navigate(NavigationRoutes.Settings.route) },
                                 onAbout = { /* TODO: Implement about screen or dialog */ }
                             )
@@ -83,6 +86,22 @@ class MainActivity : ComponentActivity() {
                                 onGameOver = { winner, score ->
                                     navController.navigate(NavigationRoutes.GameOver.createRoute(winner, score))
                                 }
+                            )
+                        }
+                        
+                        composable(NavigationRoutes.SavedGames.route) {
+                            val savedGames by savedGamesViewModel.savedGames.collectAsStateWithLifecycle()
+                            
+                            SavedGamesScreen(
+                                savedGames = savedGames,
+                                onGameSelect = { gameId ->
+                                    gameViewModel.loadGame(gameId)
+                                    navController.navigate(NavigationRoutes.Game.route)
+                                },
+                                onGameDelete = { gameId ->
+                                    savedGamesViewModel.deleteGame(gameId)
+                                },
+                                onBackClick = { navController.popBackStack() }
                             )
                         }
                         
