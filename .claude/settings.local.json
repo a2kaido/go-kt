@@ -9,7 +9,13 @@
       "Bash(rm:*)",
       "Bash(./gradlew:*)",
       "Bash(git add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(ls:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh auth:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(gh repo set-default:*)"
     ],
     "deny": []
   }
