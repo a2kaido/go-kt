@@ -4,29 +4,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Go board game implementation in Kotlin with a clean, layered architecture:
-- Core game engine with immutable state management
-- Zobrist hashing for efficient ko rule detection  
-- Extensible agent system for AI players
-- Console-based UI with ASCII board rendering
+This is a Go board game implementation in Kotlin with a multi-module architecture:
+- **Core module**: Game engine with immutable state management, Zobrist hashing for ko rule detection, and extensible agent system
+- **App module**: Android UI using Jetpack Compose (planned/in development)
+- Console-based ASCII board rendering for desktop gameplay
 
 ## Commands
 
 ### Build and Run
 ```bash
-# Build the project
+# Build the entire project (core + app modules)
 ./gradlew build
 
-# Run the main game (two random bots playing)
-./gradlew run
+# Run the core console game (two random bots playing on 9x9 board)
+./gradlew :core:run
 
 # Run with assertions enabled (for debugging)
-./gradlew run -ea
+./gradlew :core:run -ea
+
+# Build only the core module
+./gradlew :core:build
+
+# Build only the Android app
+./gradlew :app:build
 ```
 
 ### Testing
 ```bash
-# Run all tests
+# Run all tests (core module only)
 ./gradlew test
 
 # Run tests with more output
@@ -37,6 +42,12 @@ This is a Go board game implementation in Kotlin with a clean, layered architect
 
 # Run a specific test method
 ./gradlew test --tests "*.BoardTest.testCapture"
+
+# Run core module tests specifically
+./gradlew :core:test
+
+# Run Android instrumented tests
+./gradlew :app:connectedAndroidTest
 ```
 
 ### Development
@@ -49,6 +60,10 @@ This is a Go board game implementation in Kotlin with a clean, layered architect
 ```
 
 ## Architecture
+
+### Module Structure
+- **`:core`** - Pure Kotlin game engine, runnable on JVM (console gameplay)
+- **`:app`** - Android application with Jetpack Compose UI, depends on `:core`
 
 ### Core Game Engine
 The game engine uses immutable data structures with functional transformations:
