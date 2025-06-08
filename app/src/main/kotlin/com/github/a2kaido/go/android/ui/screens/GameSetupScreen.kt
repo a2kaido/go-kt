@@ -10,18 +10,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.github.a2kaido.go.agent.AIDifficulty
 
 @Composable
 fun GameSetupScreen(
-    onStartGame: (boardSize: Int, playerType: PlayerType, handicap: Int) -> Unit,
+    onStartGame: (boardSize: Int, playerType: PlayerType, handicap: Int, aiDifficulty: AIDifficulty?) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var selectedBoardSize by remember { mutableIntStateOf(9) }
     var selectedPlayerType by remember { mutableStateOf(PlayerType.HUMAN_VS_AI) }
     var selectedHandicap by remember { mutableIntStateOf(0) }
+    var selectedAIDifficulty by remember { mutableStateOf(AIDifficulty.EASY) }
     
     Column(
         modifier = modifier
@@ -113,6 +116,49 @@ fun GameSetupScreen(
             }
         }
         
+        // AI Difficulty section - only show when AI is involved
+        if (selectedPlayerType != PlayerType.HUMAN_VS_HUMAN) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "AI Difficulty",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    
+                    Column(modifier = Modifier.selectableGroup()) {
+                        AIDifficultyOption(
+                            difficulty = AIDifficulty.BEGINNER,
+                            selected = selectedAIDifficulty == AIDifficulty.BEGINNER,
+                            onSelect = { selectedAIDifficulty = AIDifficulty.BEGINNER }
+                        )
+                        AIDifficultyOption(
+                            difficulty = AIDifficulty.EASY,
+                            selected = selectedAIDifficulty == AIDifficulty.EASY,
+                            onSelect = { selectedAIDifficulty = AIDifficulty.EASY }
+                        )
+                        AIDifficultyOption(
+                            difficulty = AIDifficulty.MEDIUM,
+                            selected = selectedAIDifficulty == AIDifficulty.MEDIUM,
+                            onSelect = { selectedAIDifficulty = AIDifficulty.MEDIUM }
+                        )
+                        AIDifficultyOption(
+                            difficulty = AIDifficulty.HARD,
+                            selected = selectedAIDifficulty == AIDifficulty.HARD,
+                            onSelect = { selectedAIDifficulty = AIDifficulty.HARD }
+                        )
+                    }
+                }
+            }
+        }
+        
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -174,7 +220,10 @@ fun GameSetupScreen(
             }
             
             Button(
-                onClick = { onStartGame(selectedBoardSize, selectedPlayerType, selectedHandicap) },
+                onClick = { 
+                    val aiDifficulty = if (selectedPlayerType == PlayerType.HUMAN_VS_HUMAN) null else selectedAIDifficulty
+                    onStartGame(selectedBoardSize, selectedPlayerType, selectedHandicap, aiDifficulty) 
+                },
                 modifier = Modifier
                     .weight(1f)
                     .height(48.dp)
@@ -234,6 +283,41 @@ private fun PlayerTypeOption(
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(text = description)
+    }
+}
+
+@Composable
+private fun AIDifficultyOption(
+    difficulty: AIDifficulty,
+    selected: Boolean,
+    onSelect: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(
+                selected = selected,
+                onClick = onSelect
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onSelect
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+            Text(
+                text = difficulty.getDisplayName(),
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = difficulty.getDescription(),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

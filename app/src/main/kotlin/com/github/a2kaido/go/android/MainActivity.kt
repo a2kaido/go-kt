@@ -61,8 +61,8 @@ class MainActivity : ComponentActivity() {
                         
                         composable(NavigationRoutes.GameSetup.route) {
                             GameSetupScreen(
-                                onStartGame = { boardSize, playerType, handicap ->
-                                    gameViewModel.onNewGameClick(boardSize)
+                                onStartGame = { boardSize, playerType, handicap, aiDifficulty ->
+                                    gameViewModel.onNewGameClick(boardSize, playerType, handicap, aiDifficulty)
                                     navController.navigate(NavigationRoutes.Game.route)
                                 },
                                 onBack = { navController.popBackStack() }

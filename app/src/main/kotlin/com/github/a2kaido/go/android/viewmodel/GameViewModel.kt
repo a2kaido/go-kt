@@ -5,6 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.a2kaido.go.agent.Agent
 import com.github.a2kaido.go.agent.RandomBot
+import com.github.a2kaido.go.agent.AIDifficulty
+import com.github.a2kaido.go.agent.AIFactory
+import com.github.a2kaido.go.android.ui.screens.PlayerType
 import com.github.a2kaido.go.android.data.GoDatabase
 import com.github.a2kaido.go.android.data.repository.GameRepository
 import com.github.a2kaido.go.android.ui.FinishReason
@@ -36,8 +39,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val gameHistory = mutableListOf(gameState)
     private var historyIndex = 0
     
-    private val blackAgent: Agent? = null
-    private val whiteAgent: Agent = RandomBot()
+    private var blackAgent: Agent? = null
+    private var whiteAgent: Agent? = RandomBot()
     
     private var aiJob: Job? = null
     private var currentGameId: Long? = null
@@ -163,14 +166,35 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun onNewGameClick(boardSize: Int = 9) {
+    fun onNewGameClick(
+        boardSize: Int = 9, 
+        playerType: PlayerType = PlayerType.HUMAN_VS_AI, 
+        handicap: Int = 0, 
+        aiDifficulty: AIDifficulty? = AIDifficulty.EASY
+    ) {
         aiJob?.cancel()
         gameState = GameState.newGame(boardSize)
         gameHistory.clear()
         gameHistory.add(gameState)
         historyIndex = 0
-        updateUiState()
         
+        // Configure agents based on player type and difficulty
+        when (playerType) {
+            PlayerType.HUMAN_VS_AI -> {
+                blackAgent = null // Human plays black
+                whiteAgent = aiDifficulty?.let { AIFactory.createAgent(it) } ?: RandomBot()
+            }
+            PlayerType.HUMAN_VS_HUMAN -> {
+                blackAgent = null // Human plays black
+                whiteAgent = null // Human plays white
+            }
+            PlayerType.AI_VS_AI -> {
+                blackAgent = aiDifficulty?.let { AIFactory.createAgent(it) } ?: RandomBot()
+                whiteAgent = aiDifficulty?.let { AIFactory.createAgent(it) } ?: RandomBot()
+            }
+        }
+        
+        updateUiState()
         checkAndMakeAiMove()
     }
 
