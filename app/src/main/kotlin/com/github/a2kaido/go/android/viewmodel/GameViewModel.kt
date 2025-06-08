@@ -10,6 +10,7 @@ import com.github.a2kaido.go.agent.AIFactory
 import com.github.a2kaido.go.android.ui.screens.PlayerType
 import com.github.a2kaido.go.android.data.GoDatabase
 import com.github.a2kaido.go.android.data.repository.GameRepository
+import com.github.a2kaido.go.android.feedback.FeedbackManager
 import com.github.a2kaido.go.android.ui.FinishReason
 import com.github.a2kaido.go.android.ui.GameStatus
 import com.github.a2kaido.go.android.ui.GameUiState
@@ -34,6 +35,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = GoDatabase.getDatabase(application)
     private val repository = GameRepository(database.savedGameDao(), database.moveRecordDao())
+    private val feedbackManager = FeedbackManager(application, viewModelScope)
 
     private var gameState: GameState = GameState.newGame(9)
     private val gameHistory = mutableListOf(gameState)
@@ -69,6 +71,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             applyMove(move)
         } else {
             // Show invalid move feedback
+            feedbackManager.onInvalidMove()
             _uiState.update { it.copy(invalidMoveAttempt = point) }
             
             // Clear the invalid move indicator after a short delay
@@ -205,7 +208,48 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private fun applyMove(move: Move) {
         if (gameState.isValidMove(move)) {
             val previousState = gameState
+            val movingPlayer = previousState.nextPlayer
+            
             gameState = gameState.applyMove(move)
+            
+            // Check for captures
+            val previousBoard = previousState.board
+            val currentBoard = gameState.board
+            var capturesOccurred = false
+            
+            for (row in 1..currentBoard.numRows) {
+                for (col in 1..currentBoard.numCols) {
+                    val point = Point(row, col)
+                    val previousStone = previousBoard.get(point)
+                    val currentStone = currentBoard.get(point)
+                    
+                    if (previousStone == movingPlayer.other() && currentStone == null) {
+                        capturesOccurred = true
+                        break
+                    }
+                }
+                if (capturesOccurred) break
+            }
+            
+            // Provide feedback based on move type
+            when (val action = move.action) {
+                is MoveAction.Play -> {
+                    feedbackManager.onStonePlace(movingPlayer)
+                    if (capturesOccurred) {
+                        // Delay capture feedback slightly to not overlap with placement
+                        viewModelScope.launch {
+                            delay(100)
+                            feedbackManager.onStoneCapture()
+                        }
+                    }
+                }
+                is MoveAction.Pass -> {
+                    feedbackManager.onButtonClick()
+                }
+                is MoveAction.Resign -> {
+                    feedbackManager.onButtonClick()
+                }
+            }
             
             if (historyIndex < gameHistory.size - 1) {
                 gameHistory.subList(historyIndex + 1, gameHistory.size).clear()
@@ -222,6 +266,22 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             updateUiState()
             
             if (gameState.isOver()) {
+                // Determine winner and provide appropriate feedback
+                val winner = determineWinner()
+                val humanPlayer = when {
+                    blackAgent == null -> Player.Black
+                    whiteAgent == null -> Player.White
+                    else -> null // AI vs AI game
+                }
+                
+                if (humanPlayer != null) {
+                    if (winner == humanPlayer) {
+                        feedbackManager.onGameWin()
+                    } else if (winner != null) {
+                        feedbackManager.onGameLose()
+                    }
+                }
+                
                 saveGameCompletion()
             } else {
                 checkAndMakeAiMove()
@@ -449,8 +509,32 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         return gameState.board.grid.values.count { it.color == player }.toFloat()
     }
 
+    // Feedback settings methods
+    fun setSoundEnabled(enabled: Boolean) {
+        feedbackManager.setSoundEnabled(enabled)
+    }
+    
+    fun setHapticEnabled(enabled: Boolean) {
+        feedbackManager.setHapticEnabled(enabled)
+    }
+    
+    fun setMasterVolume(volume: Float) {
+        feedbackManager.setMasterVolume(volume)
+    }
+    
+    fun setHapticIntensity(intensity: com.github.a2kaido.go.android.haptic.HapticIntensity) {
+        feedbackManager.setHapticIntensity(intensity)
+    }
+    
+    fun isSoundEnabled(): Boolean = feedbackManager.isSoundEnabled()
+    fun isHapticEnabled(): Boolean = feedbackManager.isHapticEnabled()
+    fun getMasterVolume(): Float = feedbackManager.getMasterVolume()
+    fun getHapticIntensity(): com.github.a2kaido.go.android.haptic.HapticIntensity = feedbackManager.getHapticIntensity()
+    fun isHapticSupported(): Boolean = feedbackManager.isHapticSupported()
+
     override fun onCleared() {
         super.onCleared()
         aiJob?.cancel()
+        feedbackManager.release()
     }
 }

@@ -12,15 +12,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.github.a2kaido.go.android.haptic.HapticIntensity
 
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    soundEnabled: Boolean = true,
+    onSoundEnabledChange: (Boolean) -> Unit = {},
+    hapticEnabled: Boolean = true,
+    onHapticEnabledChange: (Boolean) -> Unit = {},
+    masterVolume: Float = 1.0f,
+    onMasterVolumeChange: (Float) -> Unit = {},
+    hapticIntensity: HapticIntensity = HapticIntensity.MEDIUM,
+    onHapticIntensityChange: (HapticIntensity) -> Unit = {},
+    hapticSupported: Boolean = true
 ) {
     var selectedTheme by remember { mutableStateOf(Theme.SYSTEM) }
-    var soundEnabled by remember { mutableStateOf(true) }
-    var hapticFeedbackEnabled by remember { mutableStateOf(true) }
     var showCoordinates by remember { mutableStateOf(false) }
     
     Column(
@@ -99,15 +107,50 @@ fun SettingsScreen(
                     title = "Sound Effects",
                     description = "Play sound effects during gameplay",
                     checked = soundEnabled,
-                    onCheckedChange = { soundEnabled = it }
+                    onCheckedChange = onSoundEnabledChange
                 )
                 
-                SettingsSwitchItem(
-                    title = "Haptic Feedback",
-                    description = "Vibrate on stone placement",
-                    checked = hapticFeedbackEnabled,
-                    onCheckedChange = { hapticFeedbackEnabled = it }
-                )
+                if (soundEnabled) {
+                    SettingsSliderItem(
+                        title = "Master Volume",
+                        description = "Adjust overall sound volume",
+                        value = masterVolume,
+                        onValueChange = onMasterVolumeChange
+                    )
+                }
+                
+                if (hapticSupported) {
+                    SettingsSwitchItem(
+                        title = "Haptic Feedback",
+                        description = "Vibrate on stone placement",
+                        checked = hapticEnabled,
+                        onCheckedChange = onHapticEnabledChange
+                    )
+                    
+                    if (hapticEnabled) {
+                        SettingsDropdownItem(
+                            title = "Haptic Intensity",
+                            description = "Adjust vibration strength",
+                            selectedValue = hapticIntensity,
+                            options = HapticIntensity.values().toList(),
+                            onValueChange = onHapticIntensityChange,
+                            optionLabel = { intensity ->
+                                when (intensity) {
+                                    HapticIntensity.LIGHT -> "Light"
+                                    HapticIntensity.MEDIUM -> "Medium"
+                                    HapticIntensity.STRONG -> "Strong"
+                                }
+                            }
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Haptic feedback not supported on this device",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
             }
         }
         
@@ -207,6 +250,119 @@ private fun SettingsSwitchItem(
             checked = checked,
             onCheckedChange = onCheckedChange
         )
+    }
+}
+
+@Composable
+private fun SettingsSliderItem(
+    title: String,
+    description: String,
+    value: Float,
+    onValueChange: (Float) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = description,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            Text(
+                text = "${(value * 100).toInt()}%",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = 0f..1f,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun <T> SettingsDropdownItem(
+    title: String,
+    description: String,
+    selectedValue: T,
+    options: List<T>,
+    onValueChange: (T) -> Unit,
+    optionLabel: (T) -> String
+) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = description,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.padding(top = 8.dp)
+        ) {
+            OutlinedTextField(
+                value = optionLabel(selectedValue),
+                onValueChange = {},
+                readOnly = true,
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+            
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(optionLabel(option)) },
+                        onClick = {
+                            onValueChange(option)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 
