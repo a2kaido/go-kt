@@ -19,7 +19,10 @@ data class GameUiState(
     val hoverPoint: Point? = null,
     val invalidMoveAttempt: Point? = null,
     val zoomScale: Float = 1f,
-    val panOffset: Offset = Offset.Zero
+    val panOffset: Offset = Offset.Zero,
+    val animatingStones: Set<Point> = emptySet(),
+    val capturedStones: Set<Point> = emptySet(),
+    val animationsEnabled: Boolean = true
 )
 
 sealed class GameStatus {

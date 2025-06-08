@@ -1,5 +1,6 @@
 package com.github.a2kaido.go.android.ui
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -50,10 +51,54 @@ fun BoardComposable(
     invalidMoveAttempt: Point? = null,
     onZoomPanChange: (Float, Offset) -> Unit = { _, _ -> },
     zoomScale: Float = 1f,
-    panOffset: Offset = Offset.Zero
+    panOffset: Offset = Offset.Zero,
+    animatingStones: Set<Point> = emptySet(),
+    capturedStones: Set<Point> = emptySet(),
+    animationsEnabled: Boolean = true
 ) {
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
+    
+    // Animation states
+    val infiniteTransition = rememberInfiniteTransition(label = "InvalidMoveShake")
+    val shakeOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = if (invalidMoveAttempt != null) 10f else 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(100, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "ShakeAnimation"
+    )
+    
+    // Animation for stone placement
+    val stoneAnimations = remember { mutableMapOf<Point, Animatable<Float, AnimationVector1D>>() }
+    
+    // Animate new stones
+    LaunchedEffect(boardState.keys) {
+        if (animationsEnabled) {
+            boardState.keys.forEach { point ->
+                if (point !in stoneAnimations) {
+                    val animatable = Animatable(0f)
+                    stoneAnimations[point] = animatable
+                    animatable.animateTo(
+                        targetValue = 1f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    )
+                }
+            }
+        }
+    }
+    
+    // Clean up animations for removed stones
+    LaunchedEffect(boardState.keys) {
+        stoneAnimations.keys.removeAll { point ->
+            point !in boardState
+        }
+    }
     
     // Board colors
     val boardColor = Color(0xFFD4A574) // Wood grain color
@@ -241,10 +286,12 @@ fun BoardComposable(
                 blackStoneColor = blackStoneColor,
                 whiteStoneColor = whiteStoneColor,
                 stoneShadowColor = stoneShadowColor,
-                lastMove = lastMove
+                lastMove = lastMove,
+                stoneAnimations = stoneAnimations,
+                animationsEnabled = animationsEnabled
             )
             
-            // Draw ghost stone
+            // Draw ghost stone with hover animation
             if (hoverPoint != null && enabled) {
                 drawGhostStone(
                     point = hoverPoint,
@@ -252,16 +299,18 @@ fun BoardComposable(
                     cellSize = cellSize,
                     gridOffset = gridOffset,
                     blackStoneColor = blackStoneColor,
-                    whiteStoneColor = whiteStoneColor
+                    whiteStoneColor = whiteStoneColor,
+                    animationsEnabled = animationsEnabled
                 )
             }
             
-            // Draw invalid move indicator
+            // Draw invalid move indicator with shake animation
             if (invalidMoveAttempt != null) {
                 drawInvalidMoveIndicator(
                     point = invalidMoveAttempt,
                     cellSize = cellSize,
-                    gridOffset = gridOffset
+                    gridOffset = gridOffset,
+                    shakeOffset = if (animationsEnabled) shakeOffset else 0f
                 )
             }
         }
@@ -394,7 +443,9 @@ private fun DrawScope.drawStones(
     blackStoneColor: Color,
     whiteStoneColor: Color,
     stoneShadowColor: Color,
-    lastMove: Point?
+    lastMove: Point?,
+    stoneAnimations: Map<Point, Animatable<Float, AnimationVector1D>>,
+    animationsEnabled: Boolean
 ) {
     val stoneRadius = cellSize * 0.4f
     val shadowOffset = 2.dp.toPx()
@@ -404,56 +455,78 @@ private fun DrawScope.drawStones(
         val y = gridOffset.y + (point.row - 1) * cellSize
         val center = Offset(x, y)
         
-        // Draw shadow
-        drawCircle(
-            color = stoneShadowColor,
-            radius = stoneRadius,
-            center = center + Offset(shadowOffset, shadowOffset)
-        )
+        // Get animation scale
+        val animationScale = if (animationsEnabled) {
+            stoneAnimations[point]?.value ?: 1f
+        } else {
+            1f
+        }
         
-        // Draw stone with gradient
-        val stoneGradient = when (player) {
-            Player.Black -> Brush.radialGradient(
-                colors = listOf(
-                    blackStoneColor.copy(alpha = 0.8f),
-                    blackStoneColor
-                ),
-                center = center - Offset(stoneRadius * 0.3f, stoneRadius * 0.3f),
-                radius = stoneRadius * 1.2f
-            )
-            Player.White -> Brush.radialGradient(
-                colors = listOf(
-                    whiteStoneColor,
-                    whiteStoneColor.copy(alpha = 0.9f)
-                ),
-                center = center - Offset(stoneRadius * 0.3f, stoneRadius * 0.3f),
-                radius = stoneRadius * 1.2f
+        val animatedRadius = stoneRadius * animationScale
+        val animatedShadowOffset = shadowOffset * animationScale
+        
+        // Draw shadow with animation
+        if (animationScale > 0f) {
+            drawCircle(
+                color = stoneShadowColor.copy(alpha = stoneShadowColor.alpha * animationScale),
+                radius = animatedRadius,
+                center = center + Offset(animatedShadowOffset, animatedShadowOffset)
             )
         }
         
-        drawCircle(
-            brush = stoneGradient,
-            radius = stoneRadius,
-            center = center
-        )
-        
-        // Draw stone border
-        drawCircle(
-            color = if (player == Player.White) Color(0xFFCCCCCC) else Color(0xFF444444),
-            radius = stoneRadius,
-            center = center,
-            style = Stroke(width = 1.dp.toPx())
-        )
-        
-        // Mark last move
-        if (point == lastMove) {
-            val markColor = if (player == Player.Black) Color.White else Color.Black
+        // Draw stone with gradient and animation
+        if (animationScale > 0f) {
+            val stoneGradient = when (player) {
+                Player.Black -> Brush.radialGradient(
+                    colors = listOf(
+                        blackStoneColor.copy(alpha = 0.8f * animationScale),
+                        blackStoneColor.copy(alpha = animationScale)
+                    ),
+                    center = center - Offset(animatedRadius * 0.3f, animatedRadius * 0.3f),
+                    radius = animatedRadius * 1.2f
+                )
+                Player.White -> Brush.radialGradient(
+                    colors = listOf(
+                        whiteStoneColor.copy(alpha = animationScale),
+                        whiteStoneColor.copy(alpha = 0.9f * animationScale)
+                    ),
+                    center = center - Offset(animatedRadius * 0.3f, animatedRadius * 0.3f),
+                    radius = animatedRadius * 1.2f
+                )
+            }
+            
             drawCircle(
-                color = markColor,
-                radius = stoneRadius * 0.3f,
-                center = center,
-                style = Stroke(width = 2.dp.toPx())
+                brush = stoneGradient,
+                radius = animatedRadius,
+                center = center
             )
+            
+            // Draw stone border
+            drawCircle(
+                color = if (player == Player.White) Color(0xFFCCCCCC).copy(alpha = animationScale) else Color(0xFF444444).copy(alpha = animationScale),
+                radius = animatedRadius,
+                center = center,
+                style = Stroke(width = 1.dp.toPx())
+            )
+            
+            // Mark last move with enhanced animation
+            if (point == lastMove) {
+                val markColor = if (player == Player.Black) Color.White else Color.Black
+                
+                // Pulsing effect for last move
+                val pulseScale = if (animationsEnabled) {
+                    1f + 0.2f * kotlin.math.sin(System.currentTimeMillis().toFloat() / 300f)
+                } else {
+                    1f
+                }
+                
+                drawCircle(
+                    color = markColor.copy(alpha = animationScale),
+                    radius = animatedRadius * 0.3f * pulseScale,
+                    center = center,
+                    style = Stroke(width = 2.dp.toPx() * animationScale)
+                )
+            }
         }
     }
 }
@@ -464,17 +537,25 @@ private fun DrawScope.drawGhostStone(
     cellSize: Float,
     gridOffset: Offset,
     blackStoneColor: Color,
-    whiteStoneColor: Color
+    whiteStoneColor: Color,
+    animationsEnabled: Boolean = true
 ) {
     val x = gridOffset.x + (point.col - 1) * cellSize
     val y = gridOffset.y + (point.row - 1) * cellSize
     val center = Offset(x, y)
     val stoneRadius = cellSize * 0.4f
     
-    // Draw semi-transparent stone
+    // Pulsing effect for ghost stone
+    val pulseAlpha = if (animationsEnabled) {
+        0.4f + 0.2f * kotlin.math.sin(System.currentTimeMillis().toFloat() / 400f)
+    } else {
+        0.5f
+    }
+    
+    // Draw semi-transparent stone with pulse
     val ghostColor = when (player) {
-        Player.Black -> blackStoneColor.copy(alpha = 0.5f)
-        Player.White -> whiteStoneColor.copy(alpha = 0.5f)
+        Player.Black -> blackStoneColor.copy(alpha = pulseAlpha)
+        Player.White -> whiteStoneColor.copy(alpha = pulseAlpha)
     }
     
     drawCircle(
@@ -483,9 +564,9 @@ private fun DrawScope.drawGhostStone(
         center = center
     )
     
-    // Draw border
+    // Draw border with pulse
     drawCircle(
-        color = if (player == Player.White) Color(0x66CCCCCC) else Color(0x66444444),
+        color = if (player == Player.White) Color(0xFFCCCCCC).copy(alpha = pulseAlpha) else Color(0xFF444444).copy(alpha = pulseAlpha),
         radius = stoneRadius,
         center = center,
         style = Stroke(width = 1.dp.toPx())
@@ -495,14 +576,15 @@ private fun DrawScope.drawGhostStone(
 private fun DrawScope.drawInvalidMoveIndicator(
     point: Point,
     cellSize: Float,
-    gridOffset: Offset
+    gridOffset: Offset,
+    shakeOffset: Float = 0f
 ) {
-    val x = gridOffset.x + (point.col - 1) * cellSize
+    val x = gridOffset.x + (point.col - 1) * cellSize + shakeOffset
     val y = gridOffset.y + (point.row - 1) * cellSize
     val center = Offset(x, y)
     val crossSize = cellSize * 0.3f
     
-    // Draw red X
+    // Draw red X with shake animation
     val strokeWidth = 3.dp.toPx()
     drawLine(
         color = Color.Red,
@@ -555,7 +637,8 @@ fun BoardComposablePreview() {
             lastMove = Point(5, 5),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(16.dp),
+            animationsEnabled = true
         )
     }
 }

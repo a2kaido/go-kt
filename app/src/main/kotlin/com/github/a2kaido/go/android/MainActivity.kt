@@ -82,6 +82,7 @@ class MainActivity : ComponentActivity() {
                                 onUndoClick = gameViewModel::onUndoClick,
                                 onRedoClick = gameViewModel::onRedoClick,
                                 onNewGameClick = gameViewModel::onNewGameClick,
+                                onToggleAnimations = gameViewModel::toggleAnimations,
                                 onBackToMenu = { navController.navigate(NavigationRoutes.MainMenu.route) },
                                 onGameOver = { winner, score ->
                                     navController.navigate(NavigationRoutes.GameOver.createRoute(winner, score))
@@ -158,6 +159,7 @@ fun GoGameScreen(
     onUndoClick: () -> Unit,
     onRedoClick: () -> Unit,
     onNewGameClick: (Int) -> Unit,
+    onToggleAnimations: () -> Unit = {},
     onBackToMenu: (() -> Unit)? = null,
     onGameOver: ((String, String) -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -235,6 +237,9 @@ fun GoGameScreen(
             onZoomPanChange = onZoomPanChange,
             zoomScale = uiState.zoomScale,
             panOffset = uiState.panOffset,
+            animatingStones = uiState.animatingStones,
+            capturedStones = uiState.capturedStones,
+            animationsEnabled = uiState.animationsEnabled,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
@@ -293,6 +298,13 @@ fun GoGameScreen(
                 enabled = !uiState.isThinking
             ) {
                 Text("New Game")
+            }
+            
+            Button(
+                onClick = onToggleAnimations,
+                enabled = !uiState.isThinking
+            ) {
+                Text(if (uiState.animationsEnabled) "Disable Animations" else "Enable Animations")
             }
             
             if (onBackToMenu != null) {
