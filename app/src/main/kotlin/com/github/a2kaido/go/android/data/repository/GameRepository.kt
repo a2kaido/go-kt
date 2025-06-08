@@ -162,7 +162,14 @@ class GameRepository(
                 else -> continue
             }
             
-            gameState = gameState.applyMove(move)
+            // Validate move before applying it to prevent assertion errors
+            if (gameState.isValidMove(move)) {
+                gameState = gameState.applyMove(move)
+            } else {
+                // Log invalid move but continue loading (this prevents crashes from corrupted data)
+                println("Warning: Invalid move found in saved game $gameId: $move at move ${moveRecord.moveNumber}")
+                // For debugging, you might want to break here or handle differently
+            }
         }
         
         return gameState
