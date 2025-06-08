@@ -114,6 +114,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(zoomScale = 1f, panOffset = androidx.compose.ui.geometry.Offset.Zero) }
     }
 
+    fun toggleAnimations() {
+        _uiState.update { it.copy(animationsEnabled = !it.animationsEnabled) }
+    }
+
     fun onPassClick() {
         if (_uiState.value.isThinking || _uiState.value.gameStatus !is GameStatus.ONGOING) {
             return
@@ -303,7 +307,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             hoverPoint = _uiState.value.hoverPoint,
             invalidMoveAttempt = _uiState.value.invalidMoveAttempt,
             zoomScale = _uiState.value.zoomScale,
-            panOffset = _uiState.value.panOffset
+            panOffset = _uiState.value.panOffset,
+            animatingStones = _uiState.value.animatingStones,
+            capturedStones = _uiState.value.capturedStones,
+            animationsEnabled = _uiState.value.animationsEnabled
         )
     }
 
