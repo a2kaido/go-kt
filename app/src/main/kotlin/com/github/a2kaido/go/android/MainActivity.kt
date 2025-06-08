@@ -13,7 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-                    val uiState by gameViewModel.uiState.collectAsStateWithLifecycle()
+                    val uiState by gameViewModel.uiState.collectAsState()
                     
                     NavHost(
                         navController = navController,
@@ -91,7 +91,7 @@ class MainActivity : ComponentActivity() {
                         }
                         
                         composable(NavigationRoutes.SavedGames.route) {
-                            val savedGames by savedGamesViewModel.savedGames.collectAsStateWithLifecycle()
+                            val savedGames by savedGamesViewModel.savedGames.collectAsState()
                             
                             SavedGamesScreen(
                                 savedGames = savedGames,
