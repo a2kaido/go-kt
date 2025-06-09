@@ -509,28 +509,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         return gameState.board.grid.values.count { it.color == player }.toFloat()
     }
 
-    // Feedback settings methods
-    fun setSoundEnabled(enabled: Boolean) {
-        feedbackManager.setSoundEnabled(enabled)
-    }
-    
-    fun setHapticEnabled(enabled: Boolean) {
-        feedbackManager.setHapticEnabled(enabled)
-    }
-    
-    fun setMasterVolume(volume: Float) {
-        feedbackManager.setMasterVolume(volume)
-    }
-    
-    fun setHapticIntensity(intensity: com.github.a2kaido.go.android.haptic.HapticIntensity) {
-        feedbackManager.setHapticIntensity(intensity)
-    }
-    
-    fun isSoundEnabled(): Boolean = feedbackManager.isSoundEnabled()
-    fun isHapticEnabled(): Boolean = feedbackManager.isHapticEnabled()
-    fun getMasterVolume(): Float = feedbackManager.getMasterVolume()
-    fun getHapticIntensity(): com.github.a2kaido.go.android.haptic.HapticIntensity = feedbackManager.getHapticIntensity()
-    fun isHapticSupported(): Boolean = feedbackManager.isHapticSupported()
 
     override fun onCleared() {
         super.onCleared()

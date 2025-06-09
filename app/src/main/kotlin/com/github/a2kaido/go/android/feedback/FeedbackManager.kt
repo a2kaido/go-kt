@@ -55,29 +55,6 @@ class FeedbackManager(context: Context, scope: CoroutineScope) {
         hapticManager.performHapticFeedback(HapticFeedbackType.BUTTON_CLICK)
     }
     
-    // Settings methods
-    fun setSoundEnabled(enabled: Boolean) {
-        audioManager.setSoundEnabled(enabled)
-    }
-    
-    fun setHapticEnabled(enabled: Boolean) {
-        hapticManager.setHapticEnabled(enabled)
-    }
-    
-    fun setMasterVolume(volume: Float) {
-        audioManager.setMasterVolume(volume)
-    }
-    
-    fun setHapticIntensity(intensity: HapticIntensity) {
-        hapticManager.setHapticIntensity(intensity)
-    }
-    
-    // Getters
-    fun isSoundEnabled(): Boolean = audioManager.isSoundEnabled()
-    fun isHapticEnabled(): Boolean = hapticManager.isHapticEnabled()
-    fun getMasterVolume(): Float = audioManager.getMasterVolume()
-    fun getHapticIntensity(): HapticIntensity = hapticManager.getHapticIntensity()
-    fun isHapticSupported(): Boolean = hapticManager.isHapticSupported()
     
     fun release() {
         audioManager.release()
