@@ -12,21 +12,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.github.a2kaido.go.android.haptic.HapticIntensity
 
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    soundEnabled: Boolean = true,
-    onSoundEnabledChange: (Boolean) -> Unit = {},
-    hapticEnabled: Boolean = true,
-    onHapticEnabledChange: (Boolean) -> Unit = {},
-    masterVolume: Float = 1.0f,
-    onMasterVolumeChange: (Float) -> Unit = {},
-    hapticIntensity: HapticIntensity = HapticIntensity.MEDIUM,
-    onHapticIntensityChange: (HapticIntensity) -> Unit = {},
-    hapticSupported: Boolean = true
 ) {
     var selectedTheme by remember { mutableStateOf(Theme.SYSTEM) }
     var showCoordinates by remember { mutableStateOf(false) }
@@ -83,72 +73,6 @@ fun SettingsScreen(
                         description = "System Default",
                         selected = selectedTheme == Theme.SYSTEM,
                         onSelect = { selectedTheme = Theme.SYSTEM }
-                    )
-                }
-            }
-        }
-        
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = "Audio & Haptics",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-                
-                SettingsSwitchItem(
-                    title = "Sound Effects",
-                    description = "Play sound effects during gameplay",
-                    checked = soundEnabled,
-                    onCheckedChange = onSoundEnabledChange
-                )
-                
-                if (soundEnabled) {
-                    SettingsSliderItem(
-                        title = "Master Volume",
-                        description = "Adjust overall sound volume",
-                        value = masterVolume,
-                        onValueChange = onMasterVolumeChange
-                    )
-                }
-                
-                if (hapticSupported) {
-                    SettingsSwitchItem(
-                        title = "Haptic Feedback",
-                        description = "Vibrate on stone placement",
-                        checked = hapticEnabled,
-                        onCheckedChange = onHapticEnabledChange
-                    )
-                    
-                    if (hapticEnabled) {
-                        SettingsDropdownItem(
-                            title = "Haptic Intensity",
-                            description = "Adjust vibration strength",
-                            selectedValue = hapticIntensity,
-                            options = HapticIntensity.values().toList(),
-                            onValueChange = onHapticIntensityChange,
-                            optionLabel = { intensity ->
-                                when (intensity) {
-                                    HapticIntensity.LIGHT -> "Light"
-                                    HapticIntensity.MEDIUM -> "Medium"
-                                    HapticIntensity.STRONG -> "Strong"
-                                }
-                            }
-                        )
-                    }
-                } else {
-                    Text(
-                        text = "Haptic feedback not supported on this device",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
             }
