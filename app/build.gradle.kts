@@ -3,6 +3,8 @@ plugins {
     kotlin("android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
+    id("com.google.gms.google-services")
+    id("com.google.firebase.appdistribution")
 }
 
 android {
@@ -31,6 +33,20 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            firebaseAppDistribution {
+                artifactType = "APK"
+                releaseNotesFile = "release-notes.txt"
+                testers = "your-testers@example.com"
+                groups = "qa-team"
+            }
+        }
+        debug {
+            firebaseAppDistribution {
+                artifactType = "APK"
+                releaseNotesFile = "release-notes.txt"
+                testers = "your-testers@example.com"
+                groups = "internal-testers"
+            }
         }
     }
     compileOptions {

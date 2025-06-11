@@ -59,6 +59,39 @@ This is a Go board game implementation in Kotlin with a multi-module architectur
 ./gradlew idea
 ```
 
+### Firebase App Distribution
+```bash
+# Build and distribute debug APK to testers
+./gradlew :app:assembleDebug :app:appDistributionUploadDebug
+
+# Build and distribute release APK to testers
+./gradlew :app:assembleRelease :app:appDistributionUploadRelease
+
+# Just upload already built APK
+./gradlew :app:appDistributionUploadDebug
+./gradlew :app:appDistributionUploadRelease
+```
+
+**Note**: Before using Firebase Distribution:
+1. Replace placeholder values in `app/google-services.json` with actual Firebase project configuration
+2. Update testers and groups in `app/build.gradle.kts` firebaseAppDistribution blocks
+3. Authenticate with Firebase CLI: `firebase login`
+
+### GitHub Actions
+
+The project includes automated Firebase Distribution via GitHub Actions:
+
+**Required Secrets** (set in GitHub repository settings):
+- `GOOGLE_SERVICES_JSON`: Content of your `google-services.json` file
+- `FIREBASE_TOKEN`: Firebase CLI token (get with `firebase login:ci`)
+
+**Workflow Triggers**:
+- **Debug builds**: Automatically on push to `develop` branch
+- **Release builds**: Automatically on push to `main` branch  
+- **Manual trigger**: Use "Actions" tab to manually trigger with build type choice
+
+**Workflow file**: `.github/workflows/firebase-distribution.yml`
+
 ## Architecture
 
 ### Module Structure
