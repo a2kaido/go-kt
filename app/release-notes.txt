@@ -1,0 +1,7 @@
+Initial build for testing with Firebase App Distribution.
+
+Features:
+- Go board game implementation
+- Multiple AI difficulty levels
+- Game saving and loading
+- Mobile-optimized UI with Jetpack Compose
