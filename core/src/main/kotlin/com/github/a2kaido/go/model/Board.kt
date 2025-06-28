@@ -19,8 +19,12 @@ data class Board(
     )
 
     fun placeStone(player: Player, point: Point) {
-        assert(isOnGrid(point))
-        assert(grid[point] == null)
+        if (!isOnGrid(point)) {
+            throw IllegalArgumentException("Point $point is not on the grid")
+        }
+        if (grid[point] != null) {
+            throw IllegalArgumentException("Point $point is already occupied")
+        }
 
         val liberties = mutableListOf<Point>()
         val adjacentSameColor = mutableListOf<GoString>()
@@ -48,7 +52,10 @@ data class Board(
         newString.stones.forEach {
             grid[it] = newString
         }
-        hash = hash.xor(zobristHash[point to player]!!)
+        val hashKey = point to player
+        val hashValue = zobristHash[hashKey] 
+            ?: throw IllegalStateException("Missing zobrist hash for $hashKey")
+        hash = hash.xor(hashValue)
         adjacentOppositeColor.forEach {
             val replacement = it.withoutLiberty(point)
             if (replacement.numLiberties() > 0) {
@@ -99,7 +106,10 @@ data class Board(
                 }
             }
             grid.remove(point)
-            hash = hash.xor(zobristHash[point to string.color]!!)
+            val hashKey = point to string.color
+            val hashValue = zobristHash[hashKey] 
+                ?: throw IllegalStateException("Missing zobrist hash for $hashKey")
+            hash = hash.xor(hashValue)
         }
     }
 

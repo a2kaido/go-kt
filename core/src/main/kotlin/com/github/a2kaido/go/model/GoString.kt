@@ -26,7 +26,9 @@ class GoString(
 //    }
 
     fun mergedWith(goString: GoString) : GoString {
-        assert(goString.color == this.color)
+        if (goString.color != this.color) {
+            throw IllegalArgumentException("Cannot merge GoStrings of different colors: ${this.color} and ${goString.color}")
+        }
 
         val combinedStones = stones + goString.stones
         return GoString(

@@ -210,7 +210,24 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val previousState = gameState
             val movingPlayer = previousState.nextPlayer
             
-            gameState = gameState.applyMove(move)
+            try {
+                gameState = gameState.applyMove(move)
+            } catch (e: IllegalArgumentException) {
+                // Handle invalid moves that passed validation but failed in core logic
+                println("Move validation failed in core logic: ${e.message}")
+                feedbackManager.onInvalidMove()
+                _uiState.update { it.copy(invalidMoveAttempt = (move.action as? MoveAction.Play)?.point) }
+                viewModelScope.launch {
+                    delay(500)
+                    _uiState.update { it.copy(invalidMoveAttempt = null) }
+                }
+                return
+            } catch (e: IllegalStateException) {
+                // Handle zobrist hash or other state errors
+                println("Game state error: ${e.message}")
+                feedbackManager.onInvalidMove()
+                return
+            }
             
             // Check for captures
             val previousBoard = previousState.board
