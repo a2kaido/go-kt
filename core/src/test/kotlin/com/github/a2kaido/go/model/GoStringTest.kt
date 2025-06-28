@@ -65,7 +65,7 @@ class GoStringTest {
             )
         )
 
-        assertThrows<AssertionError> {
+        assertThrows<IllegalArgumentException> {
             goString1.mergedWith(goString2)
         }
     }
